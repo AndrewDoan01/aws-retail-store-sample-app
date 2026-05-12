@@ -2,16 +2,16 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
+replicaCount: 2
 
 image:
   repository: public.ecr.aws/aws-containers/retail-store-sample-checkout
   pullPolicy: IfNotPresent
-  tag: 
+  tag:
 
 imagePullSecrets: []
-nameOverride: ''
-fullnameOverride: ''
+nameOverride: ""
+fullnameOverride: ""
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -20,7 +20,7 @@ serviceAccount:
   annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
-  name: ''
+  name: ""
 
 podAnnotations: {}
 
@@ -47,11 +47,11 @@ resources:
     memory: 256Mi
 
 autoscaling:
-  enabled: false
-  minReplicas: 1
+  enabled: true
+  minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 
@@ -64,9 +64,9 @@ topologySpreadConstraints: []
 metrics:
   enabled: true
   podAnnotations:
-    prometheus.io/scrape: 'true'
-    prometheus.io/port: '8080'
-    prometheus.io/path: '/metrics'
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
 
 configMap:
   create: true
@@ -74,13 +74,13 @@ configMap:
 
 app:
   persistence:
-    provider: 'in-memory'
+    provider: "in-memory"
     redis:
-      endpoint: ''
+      endpoint: ""
       tls: false
 
   endpoints:
-    orders: ''
+    orders: ""
 
 redis:
   create: false
@@ -88,7 +88,7 @@ redis:
   image:
     repository: redis
     pullPolicy: IfNotPresent
-    tag: '6.0-alpine'
+    tag: "6.0-alpine"
 
   service:
     type: ClusterIP
@@ -109,7 +109,7 @@ securityGroups:
 
 opentelemetry:
   enabled: false
-  instrumentation: ''
+  instrumentation: ""
 
 podDisruptionBudget:
   enabled: false
