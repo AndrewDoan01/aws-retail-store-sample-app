@@ -18,7 +18,7 @@ This blueprint defines the contract between app and infra repositories.
 
 - Release artifact workflow: [.github/workflows/release-artifact.yml](../.github/workflows/release-artifact.yml)
   - Trigger: release tags v* or manual workflow_dispatch.
-  - Builds and pushes service images: catalog, cart, orders, checkout, ui to all configured failover regions.
+  - PoC phase: builds and pushes the catalog service image only.
   - Resolves image digests in every region and generates a multi-region release manifest.
   - Fails fast if any service image is missing in any configured region.
   - Resolves infra version file automatically using environment-to-path repository variable mapping.
@@ -49,16 +49,7 @@ services:
         repository: 123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/retail-store-sample-catalog
         tag: 1.4.0
         digest: sha256:...
-  cart:
-    regions:
-      ap-southeast-1:
-        repository: 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/retail-store-sample-cart
-        tag: 1.4.0
-        digest: sha256:...
-      ap-northeast-1:
-        repository: 123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/retail-store-sample-cart
-        tag: 1.4.0
-        digest: sha256:...
+  # cart, orders, checkout, and ui are added after the catalog PoC is stable
 ```
 
 Infra repo must consume this manifest as the source of truth for deployment.

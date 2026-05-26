@@ -1,5 +1,9 @@
 name: App CI
 
+# CI Workflow: Build, test, and security scan
+# No deployment (CD) responsibilities
+# Long-term strategy: Flux image-automation handles GitOps deployment
+
 on:
   pull_request:
     branches:
@@ -68,7 +72,7 @@ jobs:
         env:
           IMAGE_TAG: ci-${{ github.sha }}
         run: |
-          yarn nx run-many -t container --projects=catalog,cart,orders,checkout,ui --tags local/retail-store-sample-{projectName}:${IMAGE_TAG}
+          yarn nx run-many -t container --projects=catalog --tags local/retail-store-sample-{projectName}:${IMAGE_TAG}
 
   security-scan:
     name: Security Scan
