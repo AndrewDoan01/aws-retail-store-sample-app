@@ -26,8 +26,8 @@ if [[ ! "${TARGET_ENVIRONMENT}" =~ ^(test|staging|prod)$ ]]; then
   exit 1
 fi
 
-# Services to deploy
-services=(catalog cart orders checkout ui)
+# Services to deploy (passed as 8th argument or defaults to catalog)
+IFS=',' read -r -a services <<< "${8:-catalog}"
 declare -A NAMESPACE_MAP
 NAMESPACE_MAP[catalog]=retail
 NAMESPACE_MAP[cart]=retail
@@ -63,7 +63,7 @@ for service in "${services[@]}"; do
     exit 1
   fi
 
-  repository_name="retail-store-sample-${service}"
+  repository_name="aws-retail-store-sample-app"
   # Query ECR for the digest of this image
   digest="$(aws ecr describe-images \
     --region "${PRIMARY_REGION}" \
@@ -79,7 +79,7 @@ for service in "${services[@]}"; do
   fi
 
   # Build image repository URI for this service
-  image_repo="${registry_for_region}/retail-store-sample-${service}"
+  image_repo="${registry_for_region}/aws-retail-store-sample-app"
 
   # Build service entry matching version-set schema
   namespace="${NAMESPACE_MAP[${service}]}"
