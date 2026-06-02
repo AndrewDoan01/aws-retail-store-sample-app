@@ -213,7 +213,7 @@ jobs:
   # To enable: Set repository variable INFRA_PR_AUTO_CREATION=true
   open-infra-pr:
     name: Open PR to Infra Repo (Transitional)
-    if: ${{ vars.INFRA_PR_AUTO_CREATION == 'false' }}
+    if: ${{ vars.INFRA_PR_AUTO_CREATION == 'true' }}
     needs: release
     runs-on: ubuntu-latest
     permissions:
