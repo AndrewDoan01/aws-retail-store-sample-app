@@ -120,8 +120,7 @@ ingresses: []
   #   annotations: {}
   #   tls: []
 
-ingresses:
-  []
+ingresses: []
   # - name: default
   #   className: ""
   #   hosts: []

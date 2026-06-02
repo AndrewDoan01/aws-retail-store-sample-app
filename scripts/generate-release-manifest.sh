@@ -9,9 +9,10 @@ CREATED_AT="${4:-}"
 IMAGE_TAG="${5:-}"
 ECR_REGISTRIES_JSON="${6:-}"
 AWS_REGIONS_JSON="${7:-}"
+SERVICE_PROJECTS="${8:-catalog}"
 
 if [ -z "${MANIFEST_FILE}" ] || [ -z "${RELEASE_ID}" ] || [ -z "${GIT_SHA}" ] || [ -z "${CREATED_AT}" ] || [ -z "${IMAGE_TAG}" ] || [ -z "${ECR_REGISTRIES_JSON}" ] || [ -z "${AWS_REGIONS_JSON}" ]; then
-  echo "Usage: generate-release-manifest.sh <manifest_file> <release_id> <git_sha> <created_at> <image_tag> <ecr_registries_json> <aws_regions_json>"
+  echo "Usage: generate-release-manifest.sh <manifest_file> <release_id> <git_sha> <created_at> <image_tag> <ecr_registries_json> <aws_regions_json> [service_projects]"
   exit 1
 fi
 
@@ -25,7 +26,24 @@ if ! echo "${ECR_REGISTRIES_JSON}" | jq -e 'type == "object"' >/dev/null 2>&1; t
   exit 1
 fi
 
-services=(catalog cart orders checkout ui)
+if [ -n "${SERVICE_PROJECTS}" ]; then
+  IFS=',' read -r -a requested_services <<< "${SERVICE_PROJECTS}"
+  services=()
+
+  for service in "${requested_services[@]}"; do
+    service="${service// /}"
+    if [ -n "${service}" ]; then
+      services+=("${service}")
+    fi
+  done
+else
+  services=(catalog)
+fi
+
+if [ "${#services[@]}" -eq 0 ]; then
+  echo "SERVICE_PROJECTS must contain at least one service"
+  exit 1
+fi
 
 mkdir -p "$(dirname "${MANIFEST_FILE}")"
 

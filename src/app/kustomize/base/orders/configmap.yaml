@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders
+  labels:
+    app.kubernetes.io/name: orders
+    app.kubernetes.io/instance: orders
+    app.kubernetes.io/component: service
+    app.kubernetes.io/owner: retail-store-sample
+data:
+  RETAIL_ORDERS_MESSAGING_PROVIDER: rabbitmq
+  RETAIL_ORDERS_MESSAGING_RABBITMQ_ADDRESSES: ""
+  RETAIL_ORDERS_PERSISTENCE_PROVIDER: postgres
+  RETAIL_ORDERS_PERSISTENCE_ENDPOINT: ""
+  RETAIL_ORDERS_PERSISTENCE_NAME: orders

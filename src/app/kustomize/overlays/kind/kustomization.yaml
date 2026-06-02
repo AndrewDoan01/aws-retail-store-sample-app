@@ -1,0 +1,23 @@
+resources:
+  - ../../base/catalog
+  - ../../base/cart
+  - ../../base/orders
+  - ../../base/checkout
+  - ../../base/ui
+
+namespace: default
+
+patches:
+  - path: ui-service-nodeport.yaml
+
+images:
+  - name: public.ecr.aws/aws-containers/retail-store-sample-catalog
+    newTag: e2e
+  - name: public.ecr.aws/aws-containers/retail-store-sample-cart
+    newTag: e2e
+  - name: public.ecr.aws/aws-containers/retail-store-sample-orders
+    newTag: e2e
+  - name: public.ecr.aws/aws-containers/retail-store-sample-checkout
+    newTag: e2e
+  - name: public.ecr.aws/aws-containers/retail-store-sample-ui
+    newTag: e2e

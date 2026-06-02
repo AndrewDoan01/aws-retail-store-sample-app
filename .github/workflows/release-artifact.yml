@@ -29,8 +29,12 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_REGIONS_JSON: ${{ vars.AWS_REGIONS_JSON }}
   AWS_ROLE_ARN_MAP_JSON: ${{ vars.AWS_ROLE_ARN_MAP_JSON }}
+  SERVICE_PROJECTS: catalog
   INFRA_VERSION_FILE_MAP_JSON: ${{ vars.INFRA_VERSION_FILE_MAP_JSON ||
-    '{"test":"environments/test/app-release.yaml","staging":"environments/staging/app-release.yaml","prod":"environments/prod/app-release.yaml"}'}}
+    '{"test":"deploy/versions/test.json","staging":"deploy/versions/staging.json","prod":"deploy/versions/prod.json"}'}}
+  # INFRA_PR_AUTO_CREATION: Set to 'true' to enable automatic PR creation to infra repo
+  # (Transition phase: long-term, Flux image automation will replace this)
+  INFRA_PR_AUTO_CREATION: ${{ vars.INFRA_PR_AUTO_CREATION || 'false' }}
 
 jobs:
   release:
@@ -42,6 +46,7 @@ jobs:
       run_url: ${{ steps.meta.outputs.run_url }}
       target_environment: ${{ steps.meta.outputs.target_environment }}
       infra_version_file: ${{ steps.meta.outputs.infra_version_file }}
+      ecr_registries_json: ${{ steps.ecr.outputs.ecr_registries_json }}
     steps:
       - uses: actions/checkout@v4
 
@@ -148,6 +153,7 @@ jobs:
           IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
           AWS_REGIONS_JSON: ${{ env.AWS_REGIONS_JSON }}
           ECR_REGISTRIES_JSON: ${{ steps.ecr.outputs.ecr_registries_json }}
+          SERVICE_PROJECTS: ${{ env.SERVICE_PROJECTS }}
         run: |
           set -euo pipefail
 
@@ -161,7 +167,7 @@ jobs:
             echo "Logging in and pushing images to ${registry}"
             aws ecr get-login-password --region "${region}" | docker login --username AWS --password-stdin "${registry}"
 
-            yarn nx run-many -t container --projects=catalog,cart,orders,checkout,ui --tags ${registry}/retail-store-sample-{projectName}:${IMAGE_TAG} --push true
+            yarn nx run-many -t container --projects=${SERVICE_PROJECTS} --tags ${registry}/retail-store-sample-{projectName}:${IMAGE_TAG} --push true
           done
 
       - name: Generate release manifest with digests
@@ -172,8 +178,9 @@ jobs:
           MANIFEST_FILE: ${{ steps.meta.outputs.manifest_file }}
           AWS_REGIONS_JSON: ${{ env.AWS_REGIONS_JSON }}
           ECR_REGISTRIES_JSON: ${{ steps.ecr.outputs.ecr_registries_json }}
+          SERVICE_PROJECTS: ${{ env.SERVICE_PROJECTS }}
         run: |
-          bash scripts/generate-release-manifest.sh "${MANIFEST_FILE}" "${RELEASE_ID}" "${GITHUB_SHA}" "${CREATED_AT}" "${IMAGE_TAG}" "${ECR_REGISTRIES_JSON}" "${AWS_REGIONS_JSON}"
+          bash scripts/generate-release-manifest.sh "${MANIFEST_FILE}" "${RELEASE_ID}" "${GITHUB_SHA}" "${CREATED_AT}" "${IMAGE_TAG}" "${ECR_REGISTRIES_JSON}" "${AWS_REGIONS_JSON}" "${SERVICE_PROJECTS}"
 
       - name: Install Cosign
         if: ${{ env.COSIGN_PRIVATE_KEY != '' }}
@@ -200,8 +207,13 @@ jobs:
             ${{ steps.meta.outputs.manifest_file }}.sig
           if-no-files-found: ignore
 
+  # ⚠️ TRANSITION PHASE: This job is optional and transitional
+  # Long-term strategy: Flux image-automation will replace this CD responsibility
+  # GitHub Actions should focus on CI (build/test/security), not CD deployment
+  # To enable: Set repository variable INFRA_PR_AUTO_CREATION=true
   open-infra-pr:
-    name: Open PR to Infra Repo
+    name: Open PR to Infra Repo (Transitional)
+    if: ${{ vars.INFRA_PR_AUTO_CREATION == 'false' }}
     needs: release
     runs-on: ubuntu-latest
     permissions:
@@ -212,19 +224,22 @@ jobs:
       INFRA_REPO_TOKEN: ${{ secrets.INFRA_REPO_TOKEN }}
       ENABLE_INFRA_AUTOMERGE: ${{ 'false' }}
     steps:
-      - name: Check infra integration configuration
-        id: infra-check
+      - name: Validate infra integration configuration (fail-fast)
         shell: bash
         run: |
-          if [ -n "${INFRA_REPO}" ] && [ -n "${INFRA_REPO_TOKEN}" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping infra PR because INFRA_REPO or INFRA_REPO_TOKEN is not configured"
+          if [ -z "${INFRA_REPO}" ]; then
+            echo "ERROR: INFRA_REPO secret is not configured"
+            echo "Set INFRA_REPO to '<owner>/<repo>' in GitHub Secrets"
+            exit 1
           fi
+          if [ -z "${INFRA_REPO_TOKEN}" ]; then
+            echo "ERROR: INFRA_REPO_TOKEN secret is not configured"
+            echo "Set INFRA_REPO_TOKEN to a valid GitHub token with repo access in GitHub Secrets"
+            exit 1
+          fi
+          echo "✓ Infra repo integration configured: ${INFRA_REPO}"
 
       - name: Check out infra repo
-        if: ${{ steps.infra-check.outputs.enabled == 'true' }}
         uses: actions/checkout@v4
         with:
           repository: ${{ env.INFRA_REPO }}
@@ -233,36 +248,46 @@ jobs:
           fetch-depth: 0
 
       - name: Download manifest artifact
-        if: ${{ steps.infra-check.outputs.enabled == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: release-manifest-${{ needs.release.outputs.release_id }}
           path: downloaded
 
-      - name: Update target environment version file
-        if: ${{ steps.infra-check.outputs.enabled == 'true' }}
+      - name: Generate and update version-set
         shell: bash
         env:
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
-          GIT_SHA: ${{ github.sha }}
-          RUN_URL: ${{ needs.release.outputs.run_url }}
+          APP_COMMIT_SHA: ${{ github.sha }}
           TARGET_ENV: ${{ needs.release.outputs.target_environment }}
           VERSION_FILE: ${{ needs.release.outputs.infra_version_file }}
+          AWS_REGIONS_JSON: ${{ env.AWS_REGIONS_JSON }}
+          ECR_REGISTRIES_JSON: ${{ needs.release.outputs.ecr_registries_json }}
         run: |
           set -euo pipefail
 
-          mkdir -p "infra/$(dirname "${VERSION_FILE}")"
+          # Extract short commit SHA for audit trail (7-char)
+          APP_COMMIT_SHA_SHORT="${APP_COMMIT_SHA:0:7}"
 
-          cat > "infra/${VERSION_FILE}" <<EOF
-          release_id: ${RELEASE_ID}
-          git_sha: ${GIT_SHA}
-          target_environment: ${TARGET_ENV}
-          run_url: ${RUN_URL}
-          manifest_artifact: release-manifest-${RELEASE_ID}
-          EOF
+          # Primary region (first in AWS_REGIONS_JSON)
+          PRIMARY_REGION="$(echo "${AWS_REGIONS_JSON}" | jq -r '.[0]')"
+
+          # Image repository prefix for primary region
+          REGISTRY_FOR_PRIMARY="$(echo "${ECR_REGISTRIES_JSON}" | jq -r --arg r "${PRIMARY_REGION}" '.[$r]')"
+          IMAGE_REPO_PREFIX="${REGISTRY_FOR_PRIMARY}/retail-store-sample"
+
+          # Generate version-set JSON from Helm charts + ECR digests
+          bash scripts/generate-version-set.sh \
+            "infra/${VERSION_FILE}" \
+            "${RELEASE_ID}" \
+            "${APP_COMMIT_SHA_SHORT}" \
+            "${TARGET_ENV}" \
+            "${IMAGE_REPO_PREFIX}" \
+            "${PRIMARY_REGION}" \
+            "${ECR_REGISTRIES_JSON}"
+
+          echo "✓ Version-set generated and written to infra/${VERSION_FILE}"
 
       - name: Copy manifest into infra repo
-        if: ${{ steps.infra-check.outputs.enabled == 'true' }}
         shell: bash
         env:
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
@@ -274,7 +299,6 @@ jobs:
           fi
 
       - name: Create pull request
-        if: ${{ steps.infra-check.outputs.enabled == 'true' }}
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
@@ -284,7 +308,8 @@ jobs:
             needs.release.outputs.release_id }}"
           branch: "chore/release-${{ needs.release.outputs.release_id }}"
           base: ${{ vars.INFRA_BASE_BRANCH || 'main' }}
-          title: "chore(release): app ${{ needs.release.outputs.release_id }} to ${{
+          title:
+            "chore(release): app ${{ needs.release.outputs.release_id }} to ${{
             needs.release.outputs.target_environment }}"
           body: |
             Release artifact update from app repository.
@@ -302,7 +327,7 @@ jobs:
             app-repo
 
       - name: Enable auto-merge for test/staging (optional)
-        if: ${{ steps.infra-check.outputs.enabled == 'true' && needs.release.outputs.target_environment != 'prod' && env.ENABLE_INFRA_AUTOMERGE == 'true' && steps.cpr.outputs.pull-request-number != '' }}
+        if: ${{ needs.release.outputs.target_environment != 'prod' && env.ENABLE_INFRA_AUTOMERGE == 'true' && steps.cpr.outputs.pull-request-number != '' }}
         env:
           GH_TOKEN: ${{ env.INFRA_REPO_TOKEN }}
         run: |

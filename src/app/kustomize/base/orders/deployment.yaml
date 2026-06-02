@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  labels:
+    app.kubernetes.io/name: orders
+    app.kubernetes.io/instance: orders
+    app.kubernetes.io/component: service
+    app.kubernetes.io/owner: retail-store-sample
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+      app.kubernetes.io/instance: orders
+      app.kubernetes.io/component: service
+      app.kubernetes.io/owner: retail-store-sample
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders
+        app.kubernetes.io/instance: orders
+        app.kubernetes.io/component: service
+        app.kubernetes.io/owner: retail-store-sample
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: orders
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: orders
+          env:
+            - name: JAVA_OPTS
+              value: -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom
+          envFrom:
+            - secretRef:
+                name: orders-rabbitmq
+            - configMapRef:
+                name: orders
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: public.ecr.aws/aws-containers/retail-store-sample-orders:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 10
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 256m
+              memory: 512Mi
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp-volume
+      volumes:
+        - name: tmp-volume
+          emptyDir:
+            medium: Memory

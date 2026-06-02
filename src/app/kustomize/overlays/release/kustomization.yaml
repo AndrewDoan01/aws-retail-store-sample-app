@@ -1,0 +1,23 @@
+resources:
+  - ../../base/catalog
+  - ../../base/cart
+  - ../../base/orders
+  - ../../base/checkout
+  - ../../base/ui
+
+namespace: default
+
+patches:
+  - path: ui-service-loadbalancer.yaml
+
+images:
+  - name: public.ecr.aws/aws-containers/retail-store-sample-catalog
+    newTag: latest
+  - name: public.ecr.aws/aws-containers/retail-store-sample-cart
+    newTag: latest
+  - name: public.ecr.aws/aws-containers/retail-store-sample-orders
+    newTag: latest
+  - name: public.ecr.aws/aws-containers/retail-store-sample-checkout
+    newTag: latest
+  - name: public.ecr.aws/aws-containers/retail-store-sample-ui
+    newTag: latest

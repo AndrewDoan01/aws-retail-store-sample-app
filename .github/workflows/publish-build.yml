@@ -6,6 +6,10 @@ on:
       version:
         description: "Version"
         required: true
+      service_projects:
+        description: "Nx projects to publish"
+        required: false
+        default: catalog
 
 permissions:
   id-token: write
@@ -16,4 +20,5 @@ jobs:
     uses: ./.github/workflows/artifacts.yaml
     with:
       version: ${{ inputs.version }}
+      service_projects: ${{ inputs.service_projects }}
     secrets: inherit
