@@ -63,7 +63,7 @@ mkdir -p "$(dirname "${MANIFEST_FILE}")"
   echo "  services:"
 
   for service in "${services[@]}"; do
-    repository_name="retail-store-sample-${service}"
+    repository_name="aws-retail-store-sample-app"
     echo "    - name: ${service}"
     echo "      images:"
 
