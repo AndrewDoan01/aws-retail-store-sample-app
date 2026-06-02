@@ -167,7 +167,7 @@ jobs:
             echo "Logging in and pushing images to ${registry}"
             aws ecr get-login-password --region "${region}" | docker login --username AWS --password-stdin "${registry}"
 
-            yarn nx run-many -t container --projects=${SERVICE_PROJECTS} --tags ${registry}/retail-store-sample-{projectName}:${IMAGE_TAG} --push true
+            yarn nx run-many -t container --projects=${SERVICE_PROJECTS} --tags ${registry}/aws-retail-store-sample-app:${IMAGE_TAG} --push true
           done
 
       - name: Generate release manifest with digests
@@ -283,7 +283,8 @@ jobs:
             "${TARGET_ENV}" \
             "${IMAGE_REPO_PREFIX}" \
             "${PRIMARY_REGION}" \
-            "${ECR_REGISTRIES_JSON}"
+            "${ECR_REGISTRIES_JSON}" \
+            "${SERVICE_PROJECTS}"
 
           echo "✓ Version-set generated and written to infra/${VERSION_FILE}"
 
