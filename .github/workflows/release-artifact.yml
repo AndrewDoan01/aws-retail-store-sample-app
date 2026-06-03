@@ -29,7 +29,7 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_REGIONS_JSON: ${{ vars.AWS_REGIONS_JSON }}
   AWS_ROLE_ARN_MAP_JSON: ${{ vars.AWS_ROLE_ARN_MAP_JSON }}
-  SERVICE_PROJECTS: catalog
+  SERVICE_PROJECTS: catalog,cart,checkout,orders,ui
   INFRA_VERSION_FILE_MAP_JSON: ${{ vars.INFRA_VERSION_FILE_MAP_JSON ||
     '{"test":"deploy/versions/test.json","staging":"deploy/versions/staging.json","prod":"deploy/versions/prod.json"}'}}
   # INFRA_PR_AUTO_CREATION: Set to 'true' to enable automatic PR creation to infra repo
@@ -164,10 +164,13 @@ jobs:
               exit 1
             fi
 
-            echo "Logging in and pushing images to ${registry}"
+            echo "Logging in to ${registry}"
             aws ecr get-login-password --region "${region}" | docker login --username AWS --password-stdin "${registry}"
 
-            yarn nx run-many -t container --projects=${SERVICE_PROJECTS} --tags ${registry}/aws-retail-store-sample-app:${IMAGE_TAG} --push true
+            for project in $(echo "${SERVICE_PROJECTS}" | tr ',' ' '); do
+              echo "Building and pushing ${project} to ${registry}/aws-retail-store-sample-app-${project}:${IMAGE_TAG}"
+              yarn nx run "${project}:container" --tags "${registry}/aws-retail-store-sample-app-${project}:${IMAGE_TAG}" --push true
+            done
           done
 
       - name: Generate release manifest with digests
