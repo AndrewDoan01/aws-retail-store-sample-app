@@ -88,6 +88,11 @@ for service in "${services[@]}"; do
 
   echo "  ✓ ${service}: chart_version=${chart_version}, digest=${digest:0:20}..."
 
+  smoke_deployment="${service}"
+  if [[ "${service}" == "cart" ]]; then
+    smoke_deployment="cart-carts"
+  fi
+
   service_entry=$(cat <<EOF
 {
   "name": "${service}",
@@ -101,9 +106,9 @@ for service in "${services[@]}"; do
   },
   "release_id": "${RELEASE_ID}",
   "app_commit_sha": "${APP_COMMIT_SHA}",
-  "values_files": ["values.yaml"],
+  "values_files": [],
   "smoke": {
-    "deployment": "${service}"
+    "deployment": "${smoke_deployment}"
   }
 }
 EOF
