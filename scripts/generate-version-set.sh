@@ -84,7 +84,7 @@ for service in "${services[@]}"; do
   # Build service entry matching version-set schema
   namespace="retail-store-sample-${TARGET_ENVIRONMENT}"
   release="${service}"
-  chart="oci://public.ecr.aws/docker/retail-store-sample-${service}"
+  chart="oci://public.ecr.aws/aws-containers/retail-store-sample-${service}"
 
   echo "  ✓ ${service}: chart_version=${chart_version}, digest=${digest:0:20}..."
 
