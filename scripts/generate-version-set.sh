@@ -82,7 +82,7 @@ for service in "${services[@]}"; do
   image_repo="${registry_for_region}/aws-retail-store-sample-app-${service}"
 
   # Build service entry matching version-set schema
-  namespace="${NAMESPACE_MAP[${service}]}"
+  namespace="retail-store-sample-${TARGET_ENVIRONMENT}"
   release="${service}"
   chart="oci://public.ecr.aws/docker/retail-store-sample-${service}"
 
