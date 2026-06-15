@@ -19,11 +19,3 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
-
-  artifacts:
-    uses: ./.github/workflows/artifacts.yaml
-    needs: release-please
-    if: needs.release-please.outputs.release_created
-    with:
-      version: ${{ needs.release-please.outputs.tag_name }}
-    secrets: inherit
